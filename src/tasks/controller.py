@@ -1,0 +1,84 @@
+from src.tasks.dtos import TaskSchema
+from sqlalchemy.orm import Session
+from src.tasks.models import TaskModel
+from src.user.models import UserModel
+from fastapi import HTTPException
+
+
+def create_task(body:TaskSchema, db:Session, user:UserModel):
+    data = body.model_dump()
+    new_task = TaskModel(
+        title = data["title"], 
+        desctiption = data["desctiption"], 
+        completed = data["completed"],
+        user_id = user.id
+        )
+
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+
+    return {
+        "status":"task created",
+        "data": new_task
+    }
+
+def get_tasks(db:Session , user:UserModel):
+    # tasks = db.query(TaskModel).all()
+    tasks = db.query(TaskModel).filter(TaskModel.user_id == user.id).all()
+
+    return {
+        "status":"All Tasks",
+        "data":tasks
+    }
+
+def get_single_task(task_title:str, db:Session , user:UserModel):
+    # one_task = db.query(TaskModel).get(task_title)
+    tasks = db.query(TaskModel).filter(TaskModel.user_id == user.id, TaskModel.title == task_title).all()
+    if not tasks:
+        raise HTTPException(404, detail="task id not correct")
+        
+
+    return {
+        "status":"got it!",
+        "data":tasks
+    }
+
+def update_task(body:TaskSchema, task_id:int, db:Session, user:UserModel):
+
+    
+    one_task = db.query(TaskModel).get(task_id)
+    if not one_task:
+        raise HTTPException(404, detail="task id not correct")
+
+    body = body.model_dump()
+
+    for key, value in body.items():
+        setattr(one_task, key, value)
+
+    # one_task.title = body.title
+    # one_task.desctiption = body.desctiption
+    # one_task.completed = body.completed
+
+
+    db.add(one_task)
+    db.commit()
+    db.refresh(one_task)
+   
+    return {
+        "status":"got it!",
+        "data":one_task
+    }
+
+def delete_single_task(task_id:int, db:Session, user:UserModel):
+
+    one_task = db.query(TaskModel).filter(TaskModel.user_id == user.id, TaskModel.id == task_id).first()
+    if not one_task:
+        raise HTTPException(404, detail="task id not correct")
+
+    
+    db.delete(one_task)
+    db.commit()
+    # db.refresh(one_task)
+
+    return None
